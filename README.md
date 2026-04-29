@@ -72,7 +72,7 @@ php-book-library/
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/php-book-library.git
+git clone https://github.com/realsamer/php-book-library.git
 ```
 
 2. Open the project folder:
