@@ -2,7 +2,7 @@
 session_start();
 
 // Project: PHP Book Library
-// Phase 7: Add book editing feature
+// Phase 8: Add book deletion feature
 
 function h($value)
 {
@@ -135,60 +135,79 @@ if (isset($_GET["edit_id"])) {
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $action = $_POST["action"] ?? "";
 
-    $submittedData = [
-        "title" => htmlspecialchars(trim($_POST["title"] ?? ""), ENT_QUOTES, 'UTF-8'),
-        "author" => htmlspecialchars(trim($_POST["author"] ?? ""), ENT_QUOTES, 'UTF-8'),
-        "genre" => htmlspecialchars(trim($_POST["genre"] ?? ""), ENT_QUOTES, 'UTF-8'),
-        "year" => htmlspecialchars(trim($_POST["year"] ?? ""), ENT_QUOTES, 'UTF-8'),
-        "pages" => htmlspecialchars(trim($_POST["pages"] ?? ""), ENT_QUOTES, 'UTF-8')
-    ];
+    // Delete book request
+    if ($action === "delete_book") {
+        $deleteId = (int)($_POST["book_id"] ?? 0);
 
-    $errors = validateBookData($submittedData, $genres);
+        $books = array_filter($books, function ($book) use ($deleteId) {
+            return (int)$book["id"] !== $deleteId;
+        });
 
-    if ($action === "update_book") {
-        $isEditMode = true;
-        $editId = (int)($_POST["book_id"] ?? 0);
+        $books = array_values($books);
+        $_SESSION["books"] = $books;
+        $_SESSION["success"] = "Book deleted successfully.";
+
+        header("Location: index.php");
+        exit;
     }
 
-    if (empty($errors)) {
-        if ($action === "add_book") {
-            $newBook = [
-                "id" => generateNewBookId($books),
-                "title" => $submittedData["title"],
-                "author" => $submittedData["author"],
-                "genre" => $submittedData["genre"],
-                "year" => (int)$submittedData["year"],
-                "pages" => (int)$submittedData["pages"]
-            ];
+    // Add or update book request
+    if ($action === "add_book" || $action === "update_book") {
+        $submittedData = [
+            "title" => htmlspecialchars(trim($_POST["title"] ?? ""), ENT_QUOTES, 'UTF-8'),
+            "author" => htmlspecialchars(trim($_POST["author"] ?? ""), ENT_QUOTES, 'UTF-8'),
+            "genre" => htmlspecialchars(trim($_POST["genre"] ?? ""), ENT_QUOTES, 'UTF-8'),
+            "year" => htmlspecialchars(trim($_POST["year"] ?? ""), ENT_QUOTES, 'UTF-8'),
+            "pages" => htmlspecialchars(trim($_POST["pages"] ?? ""), ENT_QUOTES, 'UTF-8')
+        ];
 
-            $books[] = $newBook;
-            $_SESSION["books"] = $books;
-            $_SESSION["success"] = "Book added successfully.";
-
-            header("Location: index.php");
-            exit;
-        }
+        $errors = validateBookData($submittedData, $genres);
 
         if ($action === "update_book") {
-            foreach ($books as $index => $book) {
-                if ((int)$book["id"] === $editId) {
-                    $books[$index] = [
-                        "id" => $editId,
-                        "title" => $submittedData["title"],
-                        "author" => $submittedData["author"],
-                        "genre" => $submittedData["genre"],
-                        "year" => (int)$submittedData["year"],
-                        "pages" => (int)$submittedData["pages"]
-                    ];
-                    break;
-                }
+            $isEditMode = true;
+            $editId = (int)($_POST["book_id"] ?? 0);
+        }
+
+        if (empty($errors)) {
+            if ($action === "add_book") {
+                $newBook = [
+                    "id" => generateNewBookId($books),
+                    "title" => $submittedData["title"],
+                    "author" => $submittedData["author"],
+                    "genre" => $submittedData["genre"],
+                    "year" => (int)$submittedData["year"],
+                    "pages" => (int)$submittedData["pages"]
+                ];
+
+                $books[] = $newBook;
+                $_SESSION["books"] = $books;
+                $_SESSION["success"] = "Book added successfully.";
+
+                header("Location: index.php");
+                exit;
             }
 
-            $_SESSION["books"] = $books;
-            $_SESSION["success"] = "Book updated successfully.";
+            if ($action === "update_book") {
+                foreach ($books as $index => $book) {
+                    if ((int)$book["id"] === $editId) {
+                        $books[$index] = [
+                            "id" => $editId,
+                            "title" => $submittedData["title"],
+                            "author" => $submittedData["author"],
+                            "genre" => $submittedData["genre"],
+                            "year" => (int)$submittedData["year"],
+                            "pages" => (int)$submittedData["pages"]
+                        ];
+                        break;
+                    }
+                }
 
-            header("Location: index.php");
-            exit;
+                $_SESSION["books"] = $books;
+                $_SESSION["success"] = "Book updated successfully.";
+
+                header("Location: index.php");
+                exit;
+            }
         }
     }
 }
@@ -361,10 +380,20 @@ if (isset($_SESSION["success"])) {
                                         <td><?= h((int)$book["year"]); ?></td>
                                         <td><?= h($book["pages"]); ?></td>
                                         <td>
-                                            <a href="index.php?edit_id=<?= h($book["id"]); ?>"
-                                                class="btn btn-sm btn-warning">
-                                                Edit
-                                            </a>
+                                            <div class="d-flex gap-2">
+                                                <a href="index.php?edit_id=<?= h($book["id"]); ?>"
+                                                    class="btn btn-sm btn-warning">
+                                                    Edit
+                                                </a>
+
+                                                <form method="POST" action="index.php">
+                                                    <input type="hidden" name="action" value="delete_book">
+                                                    <input type="hidden" name="book_id" value="<?= h($book["id"]); ?>">
+                                                    <button type="submit" class="btn btn-sm btn-danger">
+                                                        Delete
+                                                    </button>
+                                                </form>
+                                            </div>
                                         </td>
                                     </tr>
                                     <?php endforeach; ?>
