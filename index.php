@@ -2,7 +2,7 @@
 session_start();
 
 // Project: PHP Book Library
-// Phase 5: Handle successful book creation
+// Phase 6: Refactor validation into reusable functions
 
 function h($value)
 {
@@ -20,6 +20,50 @@ function generateNewBookId($books)
     }
 
     return $maxId + 1;
+}
+
+function validateBookData($data, $genres)
+{
+    $errors = [];
+    $currentYear = (int)date("Y");
+
+    if ($data["title"] === "") {
+        $errors["title"] = "Title is required.";
+    } elseif (strlen($data["title"]) < 3 || strlen($data["title"]) > 120) {
+        $errors["title"] = "Title must be between 3 and 120 characters.";
+    }
+
+    if ($data["author"] === "") {
+        $errors["author"] = "Author is required.";
+    } else {
+        $authorWords = preg_split('/\s+/', $data["author"], -1, PREG_SPLIT_NO_EMPTY);
+
+        if (count($authorWords) < 2) {
+            $errors["author"] = "Author must contain at least two words.";
+        }
+    }
+
+    if ($data["genre"] === "") {
+        $errors["genre"] = "Genre is required.";
+    } elseif (!in_array($data["genre"], $genres)) {
+        $errors["genre"] = "Please select a valid genre.";
+    }
+
+    if ($data["year"] === "") {
+        $errors["year"] = "Year is required.";
+    } elseif (!preg_match('/^\d{4}$/', $data["year"])) {
+        $errors["year"] = "Year must be a 4-digit number.";
+    } elseif ((int)$data["year"] < 1000 || (int)$data["year"] > $currentYear) {
+        $errors["year"] = "Year must be between 1000 and " . $currentYear . ".";
+    }
+
+    if ($data["pages"] === "") {
+        $errors["pages"] = "Pages is required.";
+    } elseif (!ctype_digit($data["pages"]) || (int)$data["pages"] <= 0) {
+        $errors["pages"] = "Pages must be a positive integer greater than 0.";
+    }
+
+    return $errors;
 }
 
 $genres = ["Fiction", "Non-Fiction", "Science", "History", "Biography", "Technology"];
@@ -56,7 +100,6 @@ if (!isset($_SESSION["books"])) {
 }
 
 $books = $_SESSION["books"];
-
 $errors = [];
 
 $submittedData = [
@@ -67,9 +110,7 @@ $submittedData = [
     "pages" => ""
 ];
 
-// Detect form submission
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    // Sanitize all submitted values before validation
     $submittedData = [
         "title" => htmlspecialchars(trim($_POST["title"] ?? ""), ENT_QUOTES, 'UTF-8'),
         "author" => htmlspecialchars(trim($_POST["author"] ?? ""), ENT_QUOTES, 'UTF-8'),
@@ -78,50 +119,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         "pages" => htmlspecialchars(trim($_POST["pages"] ?? ""), ENT_QUOTES, 'UTF-8')
     ];
 
-    // Validate title
-    if ($submittedData["title"] === "") {
-        $errors["title"] = "Title is required.";
-    } elseif (strlen($submittedData["title"]) < 3 || strlen($submittedData["title"]) > 120) {
-        $errors["title"] = "Title must be between 3 and 120 characters.";
-    }
+    $errors = validateBookData($submittedData, $genres);
 
-    // Validate author
-    if ($submittedData["author"] === "") {
-        $errors["author"] = "Author is required.";
-    } else {
-        $authorWords = preg_split('/\s+/', $submittedData["author"], -1, PREG_SPLIT_NO_EMPTY);
-
-        if (count($authorWords) < 2) {
-            $errors["author"] = "Author must contain at least two words.";
-        }
-    }
-
-    // Validate genre
-    if ($submittedData["genre"] === "") {
-        $errors["genre"] = "Genre is required.";
-    } elseif (!in_array($submittedData["genre"], $genres)) {
-        $errors["genre"] = "Please select a valid genre.";
-    }
-
-    // Validate year
-    $currentYear = (int)date("Y");
-
-    if ($submittedData["year"] === "") {
-        $errors["year"] = "Year is required.";
-    } elseif (!preg_match('/^\d{4}$/', $submittedData["year"])) {
-        $errors["year"] = "Year must be a 4-digit number.";
-    } elseif ((int)$submittedData["year"] < 1000 || (int)$submittedData["year"] > $currentYear) {
-        $errors["year"] = "Year must be between 1000 and " . $currentYear . ".";
-    }
-
-    // Validate pages
-    if ($submittedData["pages"] === "") {
-        $errors["pages"] = "Pages is required.";
-    } elseif (!ctype_digit($submittedData["pages"]) || (int)$submittedData["pages"] <= 0) {
-        $errors["pages"] = "Pages must be a positive integer greater than 0.";
-    }
-
-    // If validation passes, add the new book
     if (empty($errors)) {
         $newBook = [
             "id" => generateNewBookId($books),
@@ -177,7 +176,6 @@ if (isset($_SESSION["success"])) {
         <?php endif; ?>
 
         <div class="row g-4">
-            <!-- Book form column -->
             <div class="col-md-4">
                 <div class="card shadow-sm">
                     <div class="card-header bg-primary text-white">
@@ -269,7 +267,6 @@ if (isset($_SESSION["success"])) {
                 </div>
             </div>
 
-            <!-- Book table column -->
             <div class="col-md-8">
                 <div class="card shadow-sm">
                     <div class="card-header bg-dark text-white">
