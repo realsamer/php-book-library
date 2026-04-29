@@ -2,7 +2,7 @@
 session_start();
 
 // Project: PHP Book Library
-// Phase 2: Display initial books using Bootstrap layout and table
+// Phase 3: Add the book submission form
 
 function h($value)
 {
@@ -38,6 +38,14 @@ $books = [
     ]
 ];
 
+$submittedData = [
+    "title" => "",
+    "author" => "",
+    "genre" => "",
+    "year" => "",
+    "pages" => ""
+];
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -60,17 +68,56 @@ $books = [
         </div>
 
         <div class="row g-4">
-            <!-- Form column will be built in the next phase -->
+            <!-- Book form column -->
             <div class="col-md-4">
                 <div class="card shadow-sm">
                     <div class="card-header bg-primary text-white">
-                        Add Book
+                        Add New Book
                     </div>
 
                     <div class="card-body">
-                        <p class="text-muted mb-0">
-                            The book form will be added in the next phase.
-                        </p>
+                        <form method="POST" action="index.php">
+                            <div class="mb-3">
+                                <label for="title" class="form-label">Title</label>
+                                <input type="text" name="title" id="title" class="form-control"
+                                    value="<?= h($submittedData["title"]); ?>">
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="author" class="form-label">Author</label>
+                                <input type="text" name="author" id="author" class="form-control"
+                                    value="<?= h($submittedData["author"]); ?>">
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="genre" class="form-label">Genre</label>
+                                <select name="genre" id="genre" class="form-select form-control">
+                                    <option value="">Select genre</option>
+
+                                    <?php foreach ($genres as $genre): ?>
+                                    <option value="<?= h($genre); ?>">
+                                        <?= h($genre); ?>
+                                    </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="year" class="form-label">Year</label>
+                                <input type="text" name="year" id="year" class="form-control"
+                                    value="<?= h($submittedData["year"]); ?>">
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="pages" class="form-label">Pages</label>
+                                <input type="text" name="pages" id="pages" class="form-control"
+                                    value="<?= h($submittedData["pages"]); ?>">
+                            </div>
+
+                            <button type="submit" class="btn btn-primary w-100">
+                                Add Book
+                            </button>
+                        </form>
                     </div>
                 </div>
             </div>
