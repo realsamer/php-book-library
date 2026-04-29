@@ -2,16 +2,29 @@
 session_start();
 
 // Project: PHP Book Library
-// Phase 4: Add form validation and error feedback
+// Phase 5: Handle successful book creation
 
 function h($value)
 {
     return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8', false);
 }
 
+function generateNewBookId($books)
+{
+    $maxId = 0;
+
+    foreach ($books as $book) {
+        if ((int)$book["id"] > $maxId) {
+            $maxId = (int)$book["id"];
+        }
+    }
+
+    return $maxId + 1;
+}
+
 $genres = ["Fiction", "Non-Fiction", "Science", "History", "Biography", "Technology"];
 
-$books = [
+$defaultBooks = [
     [
         "id" => 1,
         "title" => "The Silent Patient",
@@ -38,6 +51,12 @@ $books = [
     ]
 ];
 
+if (!isset($_SESSION["books"])) {
+    $_SESSION["books"] = $defaultBooks;
+}
+
+$books = $_SESSION["books"];
+
 $errors = [];
 
 $submittedData = [
@@ -47,8 +66,6 @@ $submittedData = [
     "year" => "",
     "pages" => ""
 ];
-
-$formIsValid = false;
 
 // Detect form submission
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
@@ -104,9 +121,31 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $errors["pages"] = "Pages must be a positive integer greater than 0.";
     }
 
+    // If validation passes, add the new book
     if (empty($errors)) {
-        $formIsValid = true;
+        $newBook = [
+            "id" => generateNewBookId($books),
+            "title" => $submittedData["title"],
+            "author" => $submittedData["author"],
+            "genre" => $submittedData["genre"],
+            "year" => (int)$submittedData["year"],
+            "pages" => (int)$submittedData["pages"]
+        ];
+
+        $books[] = $newBook;
+        $_SESSION["books"] = $books;
+        $_SESSION["success"] = "Book added successfully.";
+
+        header("Location: index.php");
+        exit;
     }
+}
+
+$successMessage = "";
+
+if (isset($_SESSION["success"])) {
+    $successMessage = $_SESSION["success"];
+    unset($_SESSION["success"]);
 }
 
 ?>
@@ -130,9 +169,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             <p class="text-muted">Browse and manage your book collection.</p>
         </div>
 
-        <?php if ($formIsValid): ?>
+        <?php if ($successMessage !== ""): ?>
         <div class="alert alert-success alert-dismissible fade show" role="alert">
-            The form data is valid. Saving the book will be added in the next phase.
+            <?= h($successMessage); ?>
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
         <?php endif; ?>
