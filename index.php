@@ -2,11 +2,11 @@
 session_start();
 
 // Project: PHP Book Library
-// Phase 3: Add the book submission form
+// Phase 4: Add form validation and error feedback
 
 function h($value)
 {
-    return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
+    return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8', false);
 }
 
 $genres = ["Fiction", "Non-Fiction", "Science", "History", "Biography", "Technology"];
@@ -38,6 +38,8 @@ $books = [
     ]
 ];
 
+$errors = [];
+
 $submittedData = [
     "title" => "",
     "author" => "",
@@ -45,6 +47,67 @@ $submittedData = [
     "year" => "",
     "pages" => ""
 ];
+
+$formIsValid = false;
+
+// Detect form submission
+if ($_SERVER["REQUEST_METHOD"] === "POST") {
+    // Sanitize all submitted values before validation
+    $submittedData = [
+        "title" => htmlspecialchars(trim($_POST["title"] ?? ""), ENT_QUOTES, 'UTF-8'),
+        "author" => htmlspecialchars(trim($_POST["author"] ?? ""), ENT_QUOTES, 'UTF-8'),
+        "genre" => htmlspecialchars(trim($_POST["genre"] ?? ""), ENT_QUOTES, 'UTF-8'),
+        "year" => htmlspecialchars(trim($_POST["year"] ?? ""), ENT_QUOTES, 'UTF-8'),
+        "pages" => htmlspecialchars(trim($_POST["pages"] ?? ""), ENT_QUOTES, 'UTF-8')
+    ];
+
+    // Validate title
+    if ($submittedData["title"] === "") {
+        $errors["title"] = "Title is required.";
+    } elseif (strlen($submittedData["title"]) < 3 || strlen($submittedData["title"]) > 120) {
+        $errors["title"] = "Title must be between 3 and 120 characters.";
+    }
+
+    // Validate author
+    if ($submittedData["author"] === "") {
+        $errors["author"] = "Author is required.";
+    } else {
+        $authorWords = preg_split('/\s+/', $submittedData["author"], -1, PREG_SPLIT_NO_EMPTY);
+
+        if (count($authorWords) < 2) {
+            $errors["author"] = "Author must contain at least two words.";
+        }
+    }
+
+    // Validate genre
+    if ($submittedData["genre"] === "") {
+        $errors["genre"] = "Genre is required.";
+    } elseif (!in_array($submittedData["genre"], $genres)) {
+        $errors["genre"] = "Please select a valid genre.";
+    }
+
+    // Validate year
+    $currentYear = (int)date("Y");
+
+    if ($submittedData["year"] === "") {
+        $errors["year"] = "Year is required.";
+    } elseif (!preg_match('/^\d{4}$/', $submittedData["year"])) {
+        $errors["year"] = "Year must be a 4-digit number.";
+    } elseif ((int)$submittedData["year"] < 1000 || (int)$submittedData["year"] > $currentYear) {
+        $errors["year"] = "Year must be between 1000 and " . $currentYear . ".";
+    }
+
+    // Validate pages
+    if ($submittedData["pages"] === "") {
+        $errors["pages"] = "Pages is required.";
+    } elseif (!ctype_digit($submittedData["pages"]) || (int)$submittedData["pages"] <= 0) {
+        $errors["pages"] = "Pages must be a positive integer greater than 0.";
+    }
+
+    if (empty($errors)) {
+        $formIsValid = true;
+    }
+}
 
 ?>
 <!DOCTYPE html>
@@ -67,6 +130,13 @@ $submittedData = [
             <p class="text-muted">Browse and manage your book collection.</p>
         </div>
 
+        <?php if ($formIsValid): ?>
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            The form data is valid. Saving the book will be added in the next phase.
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        <?php endif; ?>
+
         <div class="row g-4">
             <!-- Book form column -->
             <div class="col-md-4">
@@ -76,42 +146,80 @@ $submittedData = [
                     </div>
 
                     <div class="card-body">
+                        <?php if (!empty($errors)): ?>
+                        <div class="alert alert-danger">
+                            Please fix the errors below and try again.
+                        </div>
+                        <?php endif; ?>
+
                         <form method="POST" action="index.php">
                             <div class="mb-3">
                                 <label for="title" class="form-label">Title</label>
-                                <input type="text" name="title" id="title" class="form-control"
+                                <input type="text" name="title" id="title"
+                                    class="form-control <?= isset($errors["title"]) ? 'is-invalid' : ''; ?>"
                                     value="<?= h($submittedData["title"]); ?>">
+                                <?php if (isset($errors["title"])): ?>
+                                <div class="invalid-feedback">
+                                    <?= h($errors["title"]); ?>
+                                </div>
+                                <?php endif; ?>
                             </div>
 
                             <div class="mb-3">
                                 <label for="author" class="form-label">Author</label>
-                                <input type="text" name="author" id="author" class="form-control"
+                                <input type="text" name="author" id="author"
+                                    class="form-control <?= isset($errors["author"]) ? 'is-invalid' : ''; ?>"
                                     value="<?= h($submittedData["author"]); ?>">
+                                <?php if (isset($errors["author"])): ?>
+                                <div class="invalid-feedback">
+                                    <?= h($errors["author"]); ?>
+                                </div>
+                                <?php endif; ?>
                             </div>
 
                             <div class="mb-3">
                                 <label for="genre" class="form-label">Genre</label>
-                                <select name="genre" id="genre" class="form-select form-control">
+                                <select name="genre" id="genre"
+                                    class="form-select form-control <?= isset($errors["genre"]) ? 'is-invalid' : ''; ?>">
                                     <option value="">Select genre</option>
 
                                     <?php foreach ($genres as $genre): ?>
-                                    <option value="<?= h($genre); ?>">
+                                    <option value="<?= h($genre); ?>"
+                                        <?= $submittedData["genre"] === $genre ? 'selected' : ''; ?>>
                                         <?= h($genre); ?>
                                     </option>
                                     <?php endforeach; ?>
                                 </select>
+
+                                <?php if (isset($errors["genre"])): ?>
+                                <div class="invalid-feedback">
+                                    <?= h($errors["genre"]); ?>
+                                </div>
+                                <?php endif; ?>
                             </div>
 
                             <div class="mb-3">
                                 <label for="year" class="form-label">Year</label>
-                                <input type="text" name="year" id="year" class="form-control"
+                                <input type="text" name="year" id="year"
+                                    class="form-control <?= isset($errors["year"]) ? 'is-invalid' : ''; ?>"
                                     value="<?= h($submittedData["year"]); ?>">
+                                <?php if (isset($errors["year"])): ?>
+                                <div class="invalid-feedback">
+                                    <?= h($errors["year"]); ?>
+                                </div>
+                                <?php endif; ?>
                             </div>
 
                             <div class="mb-3">
                                 <label for="pages" class="form-label">Pages</label>
-                                <input type="text" name="pages" id="pages" class="form-control"
+                                <input type="text" name="pages" id="pages"
+                                    class="form-control <?= isset($errors["pages"]) ? 'is-invalid' : ''; ?>"
                                     value="<?= h($submittedData["pages"]); ?>">
+                                <?php if (isset($errors["pages"])): ?>
+                                <div class="invalid-feedback">
+                                    <?= h($errors["pages"]); ?>
+                                </div>
+                                <?php endif; ?>
                             </div>
 
                             <button type="submit" class="btn btn-primary w-100">
