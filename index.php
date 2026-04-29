@@ -2,7 +2,7 @@
 session_start();
 
 // Project: PHP Book Library
-// Phase 9: Add Bootstrap delete confirmation modal
+// Phase 10: Add search and sorting features
 
 function h($value)
 {
@@ -64,6 +64,23 @@ function validateBookData($data, $genres)
     }
 
     return $errors;
+}
+
+function sortLink($column, $label, $currentSortBy, $currentSortDir, $searchTerm)
+{
+    $newDirection = "asc";
+
+    if ($currentSortBy === $column && $currentSortDir === "asc") {
+        $newDirection = "desc";
+    }
+
+    $queryString = http_build_query([
+        "search" => $searchTerm,
+        "sort_by" => $column,
+        "sort_dir" => $newDirection
+    ]);
+
+    return '<a class="text-white text-decoration-none" href="index.php?' . h($queryString) . '">' . h($label) . '</a>';
 }
 
 $genres = ["Fiction", "Non-Fiction", "Science", "History", "Biography", "Technology"];
@@ -219,6 +236,54 @@ if (isset($_SESSION["success"])) {
     unset($_SESSION["success"]);
 }
 
+// Search and sorting setup
+$searchTerm = htmlspecialchars(trim($_GET["search"] ?? ""), ENT_QUOTES, 'UTF-8');
+$sortBy = $_GET["sort_by"] ?? "id";
+$sortDir = $_GET["sort_dir"] ?? "asc";
+
+$allowedSortColumns = ["id", "title", "author", "genre", "year", "pages"];
+
+if (!in_array($sortBy, $allowedSortColumns)) {
+    $sortBy = "id";
+}
+
+if ($sortDir !== "asc" && $sortDir !== "desc") {
+    $sortDir = "asc";
+}
+
+$displayBooks = $books;
+
+// Filter books by title or author
+if ($searchTerm !== "") {
+    $displayBooks = array_filter($displayBooks, function ($book) use ($searchTerm) {
+        return stripos($book["title"], $searchTerm) !== false ||
+            stripos($book["author"], $searchTerm) !== false;
+    });
+
+    $displayBooks = array_values($displayBooks);
+}
+
+// Sort displayed books
+usort($displayBooks, function ($a, $b) use ($sortBy, $sortDir) {
+    if (in_array($sortBy, ["id", "year", "pages"])) {
+        $firstValue = (int)$a[$sortBy];
+        $secondValue = (int)$b[$sortBy];
+    } else {
+        $firstValue = strtolower((string)$a[$sortBy]);
+        $secondValue = strtolower((string)$b[$sortBy]);
+    }
+
+    if ($firstValue == $secondValue) {
+        return 0;
+    }
+
+    if ($sortDir === "desc") {
+        return ($firstValue < $secondValue) ? 1 : -1;
+    }
+
+    return ($firstValue > $secondValue) ? 1 : -1;
+});
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -356,22 +421,42 @@ if (isset($_SESSION["success"])) {
                     </div>
 
                     <div class="card-body">
+                        <form method="GET" action="index.php" class="mb-3">
+                            <div class="input-group">
+                                <input type="text" name="search" class="form-control"
+                                    placeholder="Search by title or author" value="<?= h($searchTerm); ?>">
+                                <button type="submit" class="btn btn-outline-primary">
+                                    Search
+                                </button>
+                                <a href="index.php" class="btn btn-outline-secondary">
+                                    Reset
+                                </a>
+                            </div>
+                        </form>
+
                         <div class="table-responsive">
                             <table class="table table-striped table-hover table-bordered align-middle">
                                 <thead class="table-dark">
                                     <tr>
-                                        <th>#</th>
-                                        <th>Title</th>
-                                        <th>Author</th>
-                                        <th>Genre</th>
-                                        <th>Year</th>
-                                        <th>Pages</th>
+                                        <th><?= sortLink("id", "#", $sortBy, $sortDir, $searchTerm); ?></th>
+                                        <th><?= sortLink("title", "Title", $sortBy, $sortDir, $searchTerm); ?></th>
+                                        <th><?= sortLink("author", "Author", $sortBy, $sortDir, $searchTerm); ?></th>
+                                        <th><?= sortLink("genre", "Genre", $sortBy, $sortDir, $searchTerm); ?></th>
+                                        <th><?= sortLink("year", "Year", $sortBy, $sortDir, $searchTerm); ?></th>
+                                        <th><?= sortLink("pages", "Pages", $sortBy, $sortDir, $searchTerm); ?></th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
 
                                 <tbody>
-                                    <?php foreach ($books as $book): ?>
+                                    <?php if (empty($displayBooks)): ?>
+                                    <tr>
+                                        <td colspan="7" class="text-center text-muted">
+                                            No books found.
+                                        </td>
+                                    </tr>
+                                    <?php else: ?>
+                                    <?php foreach ($displayBooks as $book): ?>
                                     <tr>
                                         <td><?= h($book["id"]); ?></td>
                                         <td><?= h($book["title"]); ?></td>
@@ -393,7 +478,6 @@ if (isset($_SESSION["success"])) {
                                                 </button>
                                             </div>
 
-                                            <!-- Delete Confirmation Modal -->
                                             <div class="modal fade" id="deleteModal<?= h($book["id"]); ?>" tabindex="-1"
                                                 aria-hidden="true">
                                                 <div class="modal-dialog">
@@ -430,12 +514,13 @@ if (isset($_SESSION["success"])) {
                                         </td>
                                     </tr>
                                     <?php endforeach; ?>
+                                    <?php endif; ?>
                                 </tbody>
                             </table>
                         </div>
 
                         <p class="text-muted small mb-0">
-                            Total books: <?= h(count($books)); ?>
+                            Total displayed books: <?= h(count($displayBooks)); ?>
                         </p>
                     </div>
                 </div>
