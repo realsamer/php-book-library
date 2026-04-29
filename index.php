@@ -2,7 +2,7 @@
 session_start();
 
 // Project: PHP Book Library
-// Phase 6: Refactor validation into reusable functions
+// Phase 7: Add book editing feature
 
 function h($value)
 {
@@ -110,7 +110,31 @@ $submittedData = [
     "pages" => ""
 ];
 
+$isEditMode = false;
+$editId = null;
+
+// Detect edit mode using ?edit_id=
+if (isset($_GET["edit_id"])) {
+    $editId = (int)$_GET["edit_id"];
+
+    foreach ($books as $book) {
+        if ((int)$book["id"] === $editId) {
+            $isEditMode = true;
+            $submittedData = [
+                "title" => $book["title"],
+                "author" => $book["author"],
+                "genre" => $book["genre"],
+                "year" => $book["year"],
+                "pages" => $book["pages"]
+            ];
+            break;
+        }
+    }
+}
+
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
+    $action = $_POST["action"] ?? "";
+
     $submittedData = [
         "title" => htmlspecialchars(trim($_POST["title"] ?? ""), ENT_QUOTES, 'UTF-8'),
         "author" => htmlspecialchars(trim($_POST["author"] ?? ""), ENT_QUOTES, 'UTF-8'),
@@ -121,22 +145,51 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     $errors = validateBookData($submittedData, $genres);
 
+    if ($action === "update_book") {
+        $isEditMode = true;
+        $editId = (int)($_POST["book_id"] ?? 0);
+    }
+
     if (empty($errors)) {
-        $newBook = [
-            "id" => generateNewBookId($books),
-            "title" => $submittedData["title"],
-            "author" => $submittedData["author"],
-            "genre" => $submittedData["genre"],
-            "year" => (int)$submittedData["year"],
-            "pages" => (int)$submittedData["pages"]
-        ];
+        if ($action === "add_book") {
+            $newBook = [
+                "id" => generateNewBookId($books),
+                "title" => $submittedData["title"],
+                "author" => $submittedData["author"],
+                "genre" => $submittedData["genre"],
+                "year" => (int)$submittedData["year"],
+                "pages" => (int)$submittedData["pages"]
+            ];
 
-        $books[] = $newBook;
-        $_SESSION["books"] = $books;
-        $_SESSION["success"] = "Book added successfully.";
+            $books[] = $newBook;
+            $_SESSION["books"] = $books;
+            $_SESSION["success"] = "Book added successfully.";
 
-        header("Location: index.php");
-        exit;
+            header("Location: index.php");
+            exit;
+        }
+
+        if ($action === "update_book") {
+            foreach ($books as $index => $book) {
+                if ((int)$book["id"] === $editId) {
+                    $books[$index] = [
+                        "id" => $editId,
+                        "title" => $submittedData["title"],
+                        "author" => $submittedData["author"],
+                        "genre" => $submittedData["genre"],
+                        "year" => (int)$submittedData["year"],
+                        "pages" => (int)$submittedData["pages"]
+                    ];
+                    break;
+                }
+            }
+
+            $_SESSION["books"] = $books;
+            $_SESSION["success"] = "Book updated successfully.";
+
+            header("Location: index.php");
+            exit;
+        }
     }
 }
 
@@ -179,7 +232,7 @@ if (isset($_SESSION["success"])) {
             <div class="col-md-4">
                 <div class="card shadow-sm">
                     <div class="card-header bg-primary text-white">
-                        Add New Book
+                        <?= $isEditMode ? "Edit Book" : "Add New Book"; ?>
                     </div>
 
                     <div class="card-body">
@@ -189,7 +242,13 @@ if (isset($_SESSION["success"])) {
                         </div>
                         <?php endif; ?>
 
-                        <form method="POST" action="index.php">
+                        <form method="POST" action="index.php<?= $isEditMode ? '?edit_id=' . h($editId) : ''; ?>">
+                            <input type="hidden" name="action" value="<?= $isEditMode ? 'update_book' : 'add_book'; ?>">
+
+                            <?php if ($isEditMode): ?>
+                            <input type="hidden" name="book_id" value="<?= h($editId); ?>">
+                            <?php endif; ?>
+
                             <div class="mb-3">
                                 <label for="title" class="form-label">Title</label>
                                 <input type="text" name="title" id="title"
@@ -260,8 +319,12 @@ if (isset($_SESSION["success"])) {
                             </div>
 
                             <button type="submit" class="btn btn-primary w-100">
-                                Add Book
+                                <?= $isEditMode ? "Update Book" : "Add Book"; ?>
                             </button>
+
+                            <?php if ($isEditMode): ?>
+                            <a href="index.php" class="btn btn-secondary w-100 mt-2">Cancel Edit</a>
+                            <?php endif; ?>
                         </form>
                     </div>
                 </div>
@@ -284,6 +347,7 @@ if (isset($_SESSION["success"])) {
                                         <th>Genre</th>
                                         <th>Year</th>
                                         <th>Pages</th>
+                                        <th>Actions</th>
                                     </tr>
                                 </thead>
 
@@ -296,6 +360,12 @@ if (isset($_SESSION["success"])) {
                                         <td><?= h($book["genre"]); ?></td>
                                         <td><?= h((int)$book["year"]); ?></td>
                                         <td><?= h($book["pages"]); ?></td>
+                                        <td>
+                                            <a href="index.php?edit_id=<?= h($book["id"]); ?>"
+                                                class="btn btn-sm btn-warning">
+                                                Edit
+                                            </a>
+                                        </td>
                                     </tr>
                                     <?php endforeach; ?>
                                 </tbody>
