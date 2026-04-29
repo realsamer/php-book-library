@@ -2,7 +2,7 @@
 session_start();
 
 // Project: PHP Book Library
-// Phase 8: Add book deletion feature
+// Phase 9: Add Bootstrap delete confirmation modal
 
 function h($value)
 {
@@ -386,13 +386,46 @@ if (isset($_SESSION["success"])) {
                                                     Edit
                                                 </a>
 
-                                                <form method="POST" action="index.php">
-                                                    <input type="hidden" name="action" value="delete_book">
-                                                    <input type="hidden" name="book_id" value="<?= h($book["id"]); ?>">
-                                                    <button type="submit" class="btn btn-sm btn-danger">
-                                                        Delete
-                                                    </button>
-                                                </form>
+                                                <button type="button" class="btn btn-sm btn-danger"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#deleteModal<?= h($book["id"]); ?>">
+                                                    Delete
+                                                </button>
+                                            </div>
+
+                                            <!-- Delete Confirmation Modal -->
+                                            <div class="modal fade" id="deleteModal<?= h($book["id"]); ?>" tabindex="-1"
+                                                aria-hidden="true">
+                                                <div class="modal-dialog">
+                                                    <div class="modal-content">
+                                                        <div class="modal-header">
+                                                            <h5 class="modal-title">Confirm Delete</h5>
+                                                            <button type="button" class="btn-close"
+                                                                data-bs-dismiss="modal" aria-label="Close"></button>
+                                                        </div>
+
+                                                        <div class="modal-body">
+                                                            Are you sure you want to delete
+                                                            <strong><?= h($book["title"]); ?></strong>?
+                                                        </div>
+
+                                                        <div class="modal-footer">
+                                                            <button type="button" class="btn btn-secondary"
+                                                                data-bs-dismiss="modal">
+                                                                Cancel
+                                                            </button>
+
+                                                            <form method="POST" action="index.php">
+                                                                <input type="hidden" name="action" value="delete_book">
+                                                                <input type="hidden" name="book_id"
+                                                                    value="<?= h($book["id"]); ?>">
+                                                                <button type="submit" class="btn btn-danger">
+                                                                    Yes, Delete
+                                                                </button>
+                                                            </form>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </td>
                                     </tr>
